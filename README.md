@@ -4,6 +4,7 @@ Platform  used: google colab
 The data used is here:  https://1drv.ms/u/s!AlQ4PLNShInzhth9DEOhhY2QAYO0gg?e=xxw5xC
 
 The data I used is slightly different from this.
+The difference will be noticed in: Area with highest crime frequency in night and in the "Vict Ages".
 
 **Data connection**
 1. upload your data on drive
