@@ -2,7 +2,8 @@ Platform  used: google colab
 
 **Data**
 The data used is here:  https://1drv.ms/u/s!AlQ4PLNShInzhth9DEOhhY2QAYO0gg?e=xxw5xC
-The data I used had slightly different from this.
+
+The data I used is slightly different from this.
 
 **Data connection**
 1. upload your data on drive
