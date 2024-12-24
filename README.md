@@ -41,10 +41,8 @@ Source: "https://1drv.ms/u/s!AlQ4PLNShInzhth9DEOhhY2QAYO0gg?e=xxw5xC" Ensure you
 
 - Python
 - Pandas
-- NumPy
 - Matplotlib
 - Seaborn
-- Folium (for geospatial visualizations)
 - Google colab
 
 
