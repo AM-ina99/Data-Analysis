@@ -1,1 +1,192 @@
+```python
+from google.colab import drive
+
+drive.mount('/content/drive')
+
+!pip install pingouin
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pingouin as pg
+
+# EDA and Anomaly Detection and Treatment
+
+# Reading multiple files from a folder:
+folder_path = '/content/drive/MyDrive/Data/Final Project'
+files = os.listdir(folder_path)
+
+# Extract only CSV files:
+csv_files = [file for file in files if file.endswith('.csv')]
+dfs = []
+
+# Read each CSV file and append to list
+for filename in csv_files:
+    file_path = os.path.join(folder_path, filename)
+    df = pd.read_csv(file_path)
+    dfs.append(df)
+
+# Combine all DataFrames into one
+SEC_combined = pd.concat(dfs, ignore_index=True)
+
+# Check initial data
+print(f"Total records: {len(SEC_combined)}")
+print(SEC_combined.info())
+print(f"Missing values per column:\n{SEC_combined.isna().sum()}")
+print(f"Any duplicates? {SEC_combined.duplicated().any()}")
+print(f"Total duplicates: {SEC_combined.duplicated().sum()}")
+
+# Convert DateTime column to datetime data type
+SEC_combined['DateTime'] = pd.to_datetime(SEC_combined['DateTime'], format='%H:%M:%S %y,%d,%m')
+
+# Remove duplicates
+SEC_combined = SEC_combined.drop_duplicates()
+
+# Rename column for clarity
+SEC_combined = SEC_combined.rename(columns={'KWH/hh (per half hour) ': 'energy_consumption'})
+
+# Read demand file
+demand = pd.read_excel('/content/drive/MyDrive/Data/Final Project/Demand.xlsx')
+
+# Align date format in demand file with consumption file
+demand['DemandDateTime'] = pd.to_datetime(demand['DemandDateTime'], format='%H:%M:%S %y,%d,%m')
+
+# Modify the column by converting all values to lowercase and replacing variations
+demand['Demand'] = demand['Demand'].str.lower()
+demand['Demand'] = demand['Demand'].replace({'normall': 'normal'})
+
+# Check unique values in 'Demand' after modification
+print(f"Unique demand levels: {demand['Demand'].unique()}")
+
+# Rename column for merging
+demand = demand.rename(columns={'DemandDateTime': 'DateTime'})
+
+# Merge the two tables with a left join
+SEC_demand = SEC_combined.merge(demand, on='DateTime', how='left')
+
+# Check data after modification and merging
+print(f"Total records after merging: {len(SEC_demand)}")
+print(SEC_demand.info())
+print(f"Missing values per column after merging:\n{SEC_demand.isna().sum()}")
+print(f"Any duplicates after merging? {SEC_demand.duplicated().any()}")
+print(f"Total duplicates after merging: {SEC_demand.duplicated().sum()}")
+
+# Statistical summary for energy consumption
+print(SEC_demand['energy_consumption'].describe())
+
+# Anomaly Detection
+# Show data distribution before anomaly detection and treatment
+plt.figure(figsize=(10, 6))
+energy_plot_before_AD = sns.boxplot(x=SEC_demand['energy_consumption'], orient='h')
+energy_plot_before_AD.set_title('Energy Consumption Boxplot')
+plt.show()
+
+plt.figure(figsize=(10, 6))
+energy_dist_before_AD = sns.histplot(SEC_combined['energy_consumption'], kde=True, bins=30)
+energy_dist_before_AD.set_title('Energy Consumption Distribution')
+plt.show()
+
+# Anomaly Detection
+# Show data distribution before anomaly detection and treatment
+plt.figure(figsize=(10, 6))
+energy_plot_before_AD = sns.boxplot(x=SEC_demand['energy_consumption'], orient='h')
+energy_plot_before_AD.set_title('Energy Consumption Boxplot')
+plt.show()
+
+plt.figure(figsize=(10, 6))
+energy_dist_before_AD = sns.histplot(SEC_combined['energy_consumption'], kde=True, bins=30)
+energy_dist_before_AD.set_title('Energy Consumption Distribution')
+plt.show()
+
+# Anomaly Detection Using IQR
+# Define a function for IQR-based anomaly detection and imputation
+def detect_and_impute_anomalies(group):
+    Q1 = group['energy_consumption'].quantile(0.25)
+    Q3 = group['energy_consumption'].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    # Replace anomalies with the region mean
+    group['AD_energy_consumption'] = np.where((group['energy_consumption'] < lower_bound) | (group['energy_consumption'] > upper_bound), 1, 0)
+    group['new_imputed_consumption'] = np.where(group['AD_energy_consumption'] == 1, np.mean(group['energy_consumption']), group['energy_consumption'])
+
+    return group
+
+# Apply the function to each region and site
+SEC_demand = SEC_demand.groupby(['region', 'site_id']).apply(detect_and_impute_anomalies)
+SEC_demand = SEC_demand.reset_index(drop=True)
+
+# Check the values
+mean_energy_by_region_site = SEC_demand.groupby(['region', 'site_id'], as_index=False)['energy_consumption'].mean()
+print(mean_energy_by_region_site)
+
+# Show anomalies and imputed values
+filtered_SEC_demand = SEC_demand[SEC_demand['AD_energy_consumption'] == 1]
+print(filtered_SEC_demand[['region', 'site_id', 'AD_energy_consumption', 'energy_consumption', 'new_imputed_consumption']].head(5))
+print(filtered_SEC_demand[['region', 'site_id', 'AD_energy_consumption', 'energy_consumption', 'new_imputed_consumption']].tail(5))
+
+# Distribution and box plot after anomaly detection and treatment
+plt.figure(figsize=(10, 6))
+energy_dist_after_AD = sns.histplot(SEC_demand['new_imputed_consumption'], kde=True, bins=30)
+energy_dist_after_AD.set_title('Energy Consumption Distribution After AD')
+plt.show()
+
+plt.figure(figsize=(10, 6))
+energy_box_after_AD = sns.boxplot(x=SEC_demand['new_imputed_consumption'], orient='h')
+energy_box_after_AD.set_title('Energy Consumption Boxplot After AD')
+plt.show()
+
+# Check stats after AD
+print(SEC_demand['new_imputed_consumption'].describe())
+
+#plot the stat of energy consumption
+
+summary_stats = SEC_demand['new_imputed_consumption'].describe()
+
+# Extracting the statistics
+
+#drop count as it will mess with all other values and the plot will be meaningless
+summary_stats = summary_stats.drop('count')
+
+stats = summary_stats.index
+values = summary_stats.values
+
+# Create a bar plot for the summary statistics
+fig = go.Figure()
+
+# Add bar chart
+fig.add_trace(go.Bar(
+    x=stats,
+    y=values,
+    marker_color='skyblue',
+    text=values,
+    textposition='auto',
+    name="Summary Statistics"
+))
+
+# Update layout for better visualization
+fig.update_layout(
+    title="Summary Statistics of Energy Consumption",
+    xaxis_title="Statistics",
+    yaxis_title="Values",
+    template="plotly_white",
+    xaxis=dict(categoryorder='array', categoryarray=stats)  # Keep the order consistent
+)
+
+# Show plot
+fig.show()
+
+
+
+
+
+
+
+
+
+
 
