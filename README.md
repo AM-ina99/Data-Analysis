@@ -31,7 +31,6 @@ Source: "https://1drv.ms/u/s!AlQ4PLNShInzhth9DEOhhY2QAYO0gg?e=xxw5xC" Ensure you
 
 ## Features
 
-- Data cleaning and preprocessing
 - Exploratory data analysis (EDA)
 - Time-series analysis of crime trends
 - Geospatial analysis of crime hotspots
