@@ -1,4 +1,4 @@
-# 🏠 Energy Consumption Analysis
+# Energy Consumption Analysis
 
 This project explores and analyzes **energy consumption patterns** to uncover inefficiencies and suggest optimization strategies. It was completed as part of the **USAID-funded Data Science Internship** at Carerha.
 
